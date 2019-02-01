@@ -34,5 +34,5 @@ Hello
 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode)
 
 ## Dependencies
-[Pillow](https://pypi.org/project/Pillow/)
-[numpy](https://pypi.org/project/numpy/)
+* [Pillow](https://pypi.org/project/Pillow/)
+* [numpy](https://pypi.org/project/numpy/)
