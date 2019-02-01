@@ -16,7 +16,7 @@ number pairs in square brackets, conforming to the following:
 * If prefixed by a sign (`-` or `+`), the coordinate is an offset relative to the previous corresponding co-ordinate.
 * If expressed as a fraction (`0.nn` or `.n`), the coordinate is a proportion of the correspondong cell dimension.
 
-To hopefully make this a little less confusing, assuming cell dimensions of 10x10, `[2,3]Hello[+2,+1]World[0.6,0.3]foo[0.1,+2]` would yield:
+To hopefully make this a little less confusing, assuming cell dimensions of 10x10, `[2,3]Hello[+2,+1]World[0.6,0.3]foo[0.1,+2]bar` would yield:
 ```
 
 
