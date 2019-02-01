@@ -8,7 +8,7 @@ This applies an approximation of composite video artifacts to still images, shif
 * `-t TEXT, --text TEXT` Text to overlay onto image, details below
 * `-s TEXT_SIZE, --text-size TEXT_SIZE` Size of text, in pixels (also affects positioning)
 
-### text formatting
+### Text formatting
 Text coordinates reference character cells, and start at 0,0 (in the left top). Text can be positioned by comma delimited
 number pairs in square brackets, conforming to the following:
 
@@ -30,4 +30,9 @@ Hello
 
 
 ```
+## Licence
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode)
 
+## Dependencies
+[Pillow](https://pypi.org/project/Pillow/)
+[numpy](https://pypi.org/project/numpy/)
