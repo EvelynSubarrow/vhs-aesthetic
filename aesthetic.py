@@ -10,6 +10,13 @@ parser.add_argument('file')
 parser.add_argument('outfile')
 parser.add_argument("-t", "--text", help="[x,y]glorious[x, y]text")
 parser.add_argument("-s", "--text-size", help="size for text", type=int, default=50)
+
+action = parser.add_mutually_exclusive_group(required=False)
+action.add_argument('--ghost-il', action='store_true', help='use inline ghosting (variable)', default=True)
+action.add_argument('--ghost-np', action='store_true', help='use numpy ghosting (fast)')
+
+parser.set_defaults(type='ghost_np')
+parser.add_argument("-g", "--ghost-width", help="ghost breadth as percentage of horizontal resolution", type=float, default=1.0)
 args = parser.parse_args()
 
 class PrintTimer:
@@ -107,12 +114,54 @@ def interfere_np(yuv_list):
         out = np.concatenate([yuv_list[:,:1]+np.random.randint(-7,8), yuv_list[:,1:]+np.random.randint(-10,11)], axis=1)
     return out
 
+def ghost_il(luminance_ghost_width):
+    global data, old_data
+    start = time.time()
+    ghost_offset = 0
+    for i, (y,u,v) in enumerate(data):
+        crosstalk_c, crosstalk_l = 0, 0
+
+        # Artificially lower definition by reusing base pixels
+        if i%ll > 1 and random.randrange(-2, 3)==1:
+            # Have to replicate the floor, otherwise the result is overbright static
+            y = old_data[i-1][0]-40
+            u = old_data[i-1][1]
+            v = old_data[i-1][2]
+
+        # Oh no, the colour is slightly out of alignment!
+        if i > 2:
+            u = old_data[i-2][1]
+            v = old_data[i-1][2]
+
+        # Arbitrary number to recalculate ghost offset at - otherwise it looks too uniform
+        if not i%70:
+            ghost_offset = (ghost_offset+random.randrange(-1, 2))%3 #3
+
+        # I ain't afraid of no ghosts
+        if i%ll > luminance_ghost_width:
+            y += old_data[(i-luminance_ghost_width)+ghost_offset][0]>>1
+        else:
+            # If we don't do this, there's a visible margin, which looks kinda bad
+            y += old_data[i][0]>>1
+
+        data[i] = (y, u, v)
+
+        if not i%100:
+            sys.stdout.write("\rIL Luma ghost   {}/{} {:3} s".format(i+1, total_length, int(time.time()-start)))
+            sys.stdout.flush()
+
+    print("\rIL Luma ghost   {}/{} {:3} s".format(total_length, total_length, int(time.time()-start)))
+
+def ghost_np(luminance_ghost_width):
+    global data, old_data
+    with PrintTimer("NP Luma ghost", len(data)):
+        data = data + (np.concatenate((old_data[:luminance_ghost_width], old_data[:-luminance_ghost_width]))) >> 1
+
 with PrintTimer("PI load") as pt:
     image = Image.open(args.file)
     image = image.convert("RGB")
     pt.count = len(image.getdata())
 
-LUMINANCE_GHOST_WIDTH = round(image.width/150)
 CHROMA_GHOST_WIDTH = 15
 
 ll = image.width
@@ -150,6 +199,13 @@ with PrintTimer("NP Array copy", total_length):
 data = interfere_np(convert_in_np(data))
 old_data = interfere_np(convert_in_np(old_data))
 
+if args.ghost_width:
+    luminance_ghost_width = round(image.width/100*args.ghost_width)
+    if args.ghost_np:
+        ghost_np(luminance_ghost_width)
+    elif args.ghost_il:
+        ghost_il(luminance_ghost_width)
+
 # Let's assume that the chroma carrier is larger than it really ought to be.
 # We're looking further into it, so everything's shifted up - this gives us the cute purple aesthetic!
 with PrintTimer("NP Chroma shift", total_length):
@@ -158,43 +214,6 @@ with PrintTimer("NP Chroma shift", total_length):
 # Dropping the luma by a fixed amount is a fairly lazy way to avoid ghost saturation
 with PrintTimer("NP Luma floor", total_length):
     data[:,:1]-=40
-
-start = time.time()
-
-ghost_offset = 0
-for i, (y,u,v) in enumerate(data):
-    crosstalk_c, crosstalk_l = 0, 0
-
-    # Artificially lower definition by reusing base pixels
-    if i%ll > 1 and random.randrange(-2, 3)==1:
-        # Have to replicate the floor, otherwise the result is overbright static
-        y = old_data[i-1][0]-40
-        u = old_data[i-1][1]
-        v = old_data[i-1][2]
-
-    # Oh no, the colour is slightly out of alignment!
-    if i > 2:
-        u = old_data[i-2][1]
-        v = old_data[i-1][2]
-
-    # Arbitrary number to recalculate ghost offset at - otherwise it looks too uniform
-    if not i%70:
-        ghost_offset = (ghost_offset+random.randrange(-1, 2))%3 #3
-
-    # I ain't afraid of no ghosts
-    if i%ll > LUMINANCE_GHOST_WIDTH:
-        y += old_data[(i-LUMINANCE_GHOST_WIDTH)+ghost_offset][0]>>1
-    else:
-        # If we don't do this, there's a visible margin, which looks kinda bad
-        y += old_data[i][0]>>1
-
-    data[i] = (y, u, v)
-
-    if not i%100:
-        sys.stdout.write("\rIL Luma ghost   {}/{} {:3} s".format(i+1, total_length, int(time.time()-start)))
-        sys.stdout.flush()
-
-print("\rIL Ghost        {}/{} {:3} s".format(total_length, total_length, int(time.time()-start)))
 
 with PrintTimer("NP Clip", total_length):
     # Overflow? In your program? It's more likely than you think
