@@ -17,6 +17,10 @@ action.add_argument('--ghost-np', action='store_true', help='use numpy ghosting 
 
 parser.set_defaults(type='ghost_np')
 parser.add_argument("-g", "--ghost-width", help="ghost breadth as percentage of horizontal resolution", type=float, default=1.0)
+
+parser.add_argument("-y", "--chrominance-static", help="maximum +- variation for yu pixel chrominance", type=int, default=7)
+parser.add_argument("-v", "--luminance-static", help="maximum +- variation for v pixel luminance", type=int, default=11)
+
 args = parser.parse_args()
 
 class PrintTimer:
@@ -111,7 +115,10 @@ def convert_out_np(yuv_list):
 
 def interfere_np(yuv_list):
     with PrintTimer("NP Static", len(yuv_list)):
-        out = np.concatenate([yuv_list[:,:1]+np.random.randint(-7,8), yuv_list[:,1:]+np.random.randint(-10,11)], axis=1)
+        out = np.concatenate([
+            yuv_list[:,:1]+np.random.randint(1-args.chrominance_static,args.chrominance_static),
+            yuv_list[:,1:]+np.random.randint(1-args.luminance_static,args.luminance_static)
+            ], axis=1)
     return out
 
 def ghost_il(luminance_ghost_width):
