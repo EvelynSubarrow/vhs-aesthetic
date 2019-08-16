@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, argparse, random, re, multiprocessing, time, timeit
+import sys, argparse, random, re, multiprocessing, time, timeit, decimal
 
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -20,6 +20,8 @@ parser.add_argument("-g", "--ghost-width", help="ghost breadth as percentage of 
 
 parser.add_argument("-y", "--chrominance-static", help="maximum +- variation for yu pixel chrominance", type=int, default=7)
 parser.add_argument("-v", "--luminance-static", help="maximum +- variation for v pixel luminance", type=int, default=11)
+
+parser.add_argument("-r", "--rescale", help="Process the image as a lower scale (expressed as decimal fraction)", type=decimal.Decimal)
 
 args = parser.parse_args()
 
@@ -169,6 +171,12 @@ with PrintTimer("PI load") as pt:
     image = image.convert("RGB")
     pt.count = len(image.getdata())
 
+IMAGE_DIMENSIONS = image.size
+
+if args.rescale:
+    with PrintTimer("PI downscale") as pt:
+        image = image.resize([args.rescale*a for a in IMAGE_DIMENSIONS])
+
 CHROMA_GHOST_WIDTH = 15
 
 ll = image.width
@@ -229,6 +237,10 @@ with PrintTimer("NP Clip", total_length):
 data = convert_out_np(data)
 with PrintTimer("IL Array out", total_length):
     image.putdata([tuple(x) for x in data])
+
+if args.rescale:
+    with PrintTimer("PI rescale") as pt:
+        image = image.resize(IMAGE_DIMENSIONS)
 
 with PrintTimer("PI save", total_length):
     image = image.convert("RGB")
